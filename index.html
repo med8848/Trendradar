@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全网热点追踪</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 { 
+            font-size: 28px; 
+            color: #1a202c; 
+            margin: 20px 0 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .subtitle { color: #718096; font-size: 14px; margin-bottom: 24px; }
+        .update-time { 
+            background: #e2e8f0; 
+            padding: 6px 14px; 
+            border-radius: 20px; 
+            font-size: 13px; 
+            color: #2d3748;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .hot-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border-left: 4px solid #4299e1;
+            transition: 0.2s;
+        }
+        .hot-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .hot-title { 
+            font-size: 16px; 
+            font-weight: 500; 
+            color: #1a202c;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .hot-title:hover { color: #3182ce; }
+        .hot-meta {
+            font-size: 13px;
+            color: #a0aec0;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .hot-meta span { background: #edf2f7; padding: 2px 10px; border-radius: 12px; }
+        .empty { text-align: center; padding: 60px 20px; color: #a0aec0; }
+        .empty .icon { font-size: 48px; margin-bottom: 16px; }
+        .footer { text-align: center; margin-top: 40px; color: #a0aec0; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <h1>🔥 全网热点雷达</h1>
+    <div class="subtitle">实时聚合知乎 · 微博 · 抖音 · 头条等平台热门话题</div>
+    <div id="updateTime" class="update-time">⏳ 加载中...</div>
+    <div id="hotList"></div>
+    <div class="footer">数据每6小时自动更新 · 由 GitHub Actions 驱动</div>
+
+    <script>
+        async function loadData() {
+            try {
+                const response = await fetch('trends.csv');
+                if (!response.ok) throw new Error('数据文件不存在，请先运行 Actions 抓取数据');
+                const text = await response.text();
+                const rows = text.split('\n').filter(row => row.trim() !== '');
+                
+                // 跳过表头
+                const dataRows = rows.slice(1);
+                if (dataRows.length === 0) {
+                    document.getElementById('hotList').innerHTML = `
+                        <div class="empty">
+                            <div class="icon">📭</div>
+                            <p>暂无热点数据</p >
+                            <p style="font-size:14px;margin-top:8px;">请在 GitHub Actions 中运行 "Update trending data" 抓取数据</p >
+                        </div>
+                    `;
+                    document.getElementById('updateTime').textContent = '⏳ 暂无数据';
+                    return;
+                }
+
+                // 解析 CSV（简单解析，假设字段不含逗号）
+                const items = dataRows.map(row => {
+                    const parts = row.split(',');
+                    return {
+                        title: parts[0] || '无标题',
+                        source: parts[1] || '未知来源',
+                        url: parts[2] || '#',
+                        time: parts[3] || ''
+                    };
+                }).filter(item => item.title && item.title !== 'title');
+
+                // 显示更新时间（取文件最后修改时间，这里用当前时间代替）
+                const now = new Date();
+                document.getElementById('updateTime').textContent = 
+                    `🔄 更新于 ${now.toLocaleString('zh-CN')} · 共 ${items.length} 条热点`;
+
+                const listHtml = items.map(item => `
+                    <div class="hot-item">
+                        <a href=" " target="_blank" class="hot-title">${item.title}</a >
+                        <div class="hot-meta">
+                            <span>📱 ${item.source}</span>
+                            ${item.time ? `<span>🕐 ${item.time}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('hotList').innerHTML = listHtml;
+
+            } catch (error) {
+                document.getElementById('hotList').innerHTML = `
+                    <div class="empty">
+                        <div class="icon">⚠️</div>
+                        <p>${error.message}</p >
+                        <p style="font-size:14px;margin-top:8px;">请确保已运行 Actions 抓取数据</p >
+                    </div>
+                `;
+                document.getElementById('updateTime').textContent = '⏳ 加载失败';
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
